@@ -546,7 +546,7 @@ class GaussianModel:
 
         pruned_count = prune_mask.sum().item()
         print(
-            f"\n [CoCO-Train] Prune & Recovery: Removing {pruned_count} points with importance score below {threshold:.6f} (prune_percent={prune_percent*100:.f}%). Remaining: {self._xyz.shape[0] - pruned_count} points."
+            f"\n [CoCO-Train] Prune & Recovery: Removing {pruned_count} points with importance score below {threshold:.6f} (prune_percent={prune_percent*100:.2f}%). Remaining: {self._xyz.shape[0] - pruned_count} points."
         )
 
         self.prune_points(prune_mask)

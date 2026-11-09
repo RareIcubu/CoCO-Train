@@ -3,4 +3,14 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
+  - pip
+  - pip:
+    - torch
+    - torchvision
+    - torchaudio
+    - plyfile
+    - tqdm
+    - opencv-python
+    - joblib
+    - lpips
 prefix: /home/jakub/.conda/envs/gaussian_splatting

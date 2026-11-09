@@ -155,11 +155,9 @@ def training(
         else:
             Ll1depth = 0
 
-        if opt.lambda_opacity > 0.0 and iteration > 3000:
-            op = torch.clamp(gaussians.get_opacity, 1e-5, 1.0 - 1e-5)
-            entropy_loss = -(
-                op * torch.log(op) + (1.0 - op) * torch.log(1.0 - op)
-            ).mean()
+        if opt.lambda_opacity > 0.0 and iteration > opt.densify_from_iter:
+            op = gaussians.get_opacity
+            entropy_loss = (4.0 * op * (1.0 - op)).mean()
             loss = loss + opt.lambda_opacity * entropy_loss
 
         loss.backward()
@@ -236,13 +234,7 @@ def training(
                     dataset.white_background and iteration == opt.densify_from_iter
                 ):
                     gaussians.reset_opacity()
-            if iteration >= opt.densify_until_iter and iteration < 20000:
-                gaussians.accumulate_importance(radii)
-
-            if iteration == 20000:
-                gaussians.prune_low_importance(0.40)
-
-            # Optimizer step
+                    # Optimizer step
             if iteration < opt.iterations:
                 gaussians.exposure_optimizer.step()
                 gaussians.exposure_optimizer.zero_grad(set_to_none=True)
@@ -253,6 +245,12 @@ def training(
                 else:
                     gaussians.optimizer.step()
                     gaussians.optimizer.zero_grad(set_to_none=True)
+
+            if iteration >= opt.densify_until_iter and iteration < 20000:
+                gaussians.accumulate_importance_score(radii)
+
+            if iteration == 20000:
+                gaussians.prune_low_importance(0.20)
 
             if iteration in checkpoint_iterations:
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
