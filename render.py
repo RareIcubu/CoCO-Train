@@ -47,6 +47,19 @@ def render_set(
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
 
+    if name == "test":
+        cam_export_path = os.path.join(model_path, "test_cameras.txt")
+        with open(cam_export_path, "w") as f:
+            f.write(f"{len(views)}\n")
+            for idx, view in enumerate(views):
+                fx = view.image_width / (2 * math.tan(view.FoVx * 0.5))
+                fy = view.image_height / (2 * math.tan(view.FoVy * 0.5))
+
+                w2c = view.world_view_transform.cpu().numpy().flatten()
+                w2c_str = " ".join(f"{x:.8f}" for x in w2c)
+                f.write(
+                    f"{idx:05d}.png {view.image_width} {view.image_height} {fx:.6f} {fy:.6f} {w2c_str}\n"
+                )
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         rendering = render(
             view,
@@ -57,20 +70,6 @@ def render_set(
             separate_sh=separate_sh,
         )["render"]
         gt = view.original_image[0:3, :, :]
-
-        if name == "test":
-            cam_export_path = os.path.join(model_path, "test_cameras.txt")
-            with open(cam_export_path, "w") as f:
-                f.write(f"{len(views)}\n")
-                for idx, view in enumerate(views):
-                    fx = view.image_width / (2 * math.tan(view.FoVx * 0.5))
-                    fy = view.image_height / (2 * math.tan(view.FoVy * 0.5))
-
-                    w2c = view.world_view_transform.cpu().numpy().flatten()
-                    w2c_str = " ".join(f"{x:.8f}" for x in w2c)
-                    f.write(
-                        f"{idx:05d}.png {view.image_width} {view.image_height} {fx:.6f} {fy:.6f} {w2c_str}\n"
-                    )
 
         if args.train_test_exp:
             rendering = rendering[..., rendering.shape[-1] // 2 :]
@@ -149,4 +148,3 @@ if __name__ == "__main__":
         args.skip_test,
         SPARSE_ADAM_AVAILABLE,
     )
-

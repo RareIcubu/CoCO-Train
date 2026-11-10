@@ -155,8 +155,8 @@ def training(
         else:
             Ll1depth = 0
 
-        if opt.lambda_opacity > 0.0 and iteration > opt.densify_from_iter:
-            op = gaussians.get_opacity
+        if opt.lambda_opacity > 0.0 and iteration > opt.densify_until_iter:
+            op = gaussians.get_opacity[visibility_filter]
             entropy_loss = (4.0 * op * (1.0 - op)).mean()
             loss = loss + opt.lambda_opacity * entropy_loss
 
