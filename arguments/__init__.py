@@ -77,6 +77,11 @@ class PipelineParams(ParamGroup):
         self.compute_cov3D_python = False
         self.debug = False
         self.antialiasing = False
+        # Render aware training
+        self.opacity_entropy = False
+        self.prune_and_recovery = False
+        self.opacity_entropy_start = "densify_until_iter"
+        self.tight_aabb = False
         super().__init__(parser, "Pipeline Parameters")
 
 
@@ -106,8 +111,9 @@ class OptimizationParams(ParamGroup):
         self.depth_l1_weight_final = 0.01
         self.random_background = False
         self.optimizer_type = "default"
-        self.lambda_opacity = 0.0005
-        self.prune_percent = 0.40
+        self.lambda_opacity = 0.0001
+        self.prune_iteration = 20_000
+        self.prune_percent = 0.20
         super().__init__(parser, "Optimization Parameters")
 
 

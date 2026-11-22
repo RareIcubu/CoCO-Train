@@ -41,6 +41,9 @@ def render_set(
     train_test_exp,
     separate_sh,
 ):
+
+    os.environ["COCO_TIGHT_AABB"] = "1" if pipeline.tight_aabb else "0"
+
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
 

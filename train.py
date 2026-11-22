@@ -66,6 +66,22 @@ def training(
     gaussians = GaussianModel(dataset.sh_degree, opt.optimizer_type)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
+
+    os.environ["COCO_TIGHT_AABB"] = "1" if pipe.tight_aabb else "0"
+
+    if pipe.opacity_entropy_start == "densify_from_iter":
+        opacity_entropy_start = opt.densify_from_iter
+    elif pipe.opacity_entropy_start == "densify_until_iter":
+        opacity_entropy_start = opt.densify_until_iter
+    else:
+        raise ValueError(
+            f"Unknown opacity entropy start: {pipe.opacity_entropy_start}, must be either 'densify_from_iter' or 'densify_until_iter'"
+        )
+    if pipe.prune_and_recovery:
+        if not (opt.densify_until_iter < opt.prune_iteration <= opt.iterations):
+            raise ValueError(
+                f"Prune iteration must be between densify_until_iter and iterations, got {opt.prune_iteration} with densify_until_iter={opt.densify_until_iter} and iterations={opt.iterations}"
+            )
     if checkpoint:
         model_params, first_iter = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
@@ -155,7 +171,11 @@ def training(
         else:
             Ll1depth = 0
 
-        if opt.lambda_opacity > 0.0 and iteration > opt.densify_until_iter:
+        if (
+            pipe.opacity_entropy
+            and opt.lambda_opacity > 0.0
+            and iteration > opacity_entropy_start
+        ):
             op = gaussians.get_opacity[visibility_filter]
             entropy_loss = (4.0 * op * (1.0 - op)).mean()
             loss = loss + opt.lambda_opacity * entropy_loss
@@ -163,6 +183,21 @@ def training(
         loss.backward()
 
         iter_end.record()
+
+        if iteration % 500 == 0:
+            torch.cuda.synchronize()
+
+            alloc_curr = torch.cuda.memory_allocated() / 1024**3
+            alloc_peak = torch.cuda.max_memory_allocated() / 1024**3
+            res_peak = torch.cuda.max_memory_reserved() / 1024**3
+
+            print(
+                f"\n[MEM] Iter: {iteration} |"
+                f"Splats: {gaussians.get_xyz.shape[0]} |"
+                f"Curr Alloc: {alloc_curr:.2f} GB |"
+                f"Peak Alloc: {alloc_peak:.2f} GB"
+                f"Peak Reserved: {res_peak:.2f} GB"
+            )
 
         with torch.no_grad():
             # Progress bar
@@ -245,12 +280,19 @@ def training(
                 else:
                     gaussians.optimizer.step()
                     gaussians.optimizer.zero_grad(set_to_none=True)
+            if pipe.prune_and_recovery:
+                if (
+                    pipe.prune_and_recovery
+                    and iteration >= opt.densify_until_iter
+                    and iteration < opt.prune_iteration
+                ):
+                    gaussians.accumulate_importance_score(radii)
 
-            if iteration >= opt.densify_until_iter and iteration < 20000:
-                gaussians.accumulate_importance_score(radii)
-
-            if iteration == 20000:
-                gaussians.prune_low_importance(0.20)
+                if iteration == opt.prune_iteration:
+                    dead_mask = (gaussians.get_opacity < (1.0 / 255.0)).squeeze()
+                    if dead_mask.any():
+                        gaussians.prune_points(dead_mask)
+                    gaussians.prune_low_importance(opt.prune_percent)
 
             if iteration in checkpoint_iterations:
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
@@ -423,6 +465,12 @@ if __name__ == "__main__":
         f.write(f"Whole trainging time: {end_time - start_time} seconds\n")
         f.write(
             f"Peak memory usage: {torch.cuda.max_memory_allocated() / 1024 ** 2} MB\n"
+        )
+        f.write(
+            f"Peak tensor memory (Allocated): {torch.cuda.max_memory_allocated() / 1024 ** 2} MB\n"
+        )
+        f.write(
+            f"Peak driver memory (Reseved): {torch.cuda.max_memory_reserved() / 1024 ** 2} MB\n"
         )
         f.write(f"Final splats number: {final_splats}\n")
         f.close()
