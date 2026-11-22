@@ -192,10 +192,10 @@ def training(
             res_peak = torch.cuda.max_memory_reserved() / 1024**3
 
             print(
-                f"\n[MEM] Iter: {iteration} |"
-                f"Splats: {gaussians.get_xyz.shape[0]} |"
-                f"Curr Alloc: {alloc_curr:.2f} GB |"
-                f"Peak Alloc: {alloc_peak:.2f} GB"
+                f"\n[MEM] Iter: {iteration} | "
+                f"Splats: {gaussians.get_xyz.shape[0]} | "
+                f"Curr Alloc: {alloc_curr:.2f} GB | "
+                f"Peak Alloc: {alloc_peak:.2f} GB | "
                 f"Peak Reserved: {res_peak:.2f} GB"
             )
 
@@ -282,8 +282,7 @@ def training(
                     gaussians.optimizer.zero_grad(set_to_none=True)
             if pipe.prune_and_recovery:
                 if (
-                    pipe.prune_and_recovery
-                    and iteration >= opt.densify_until_iter
+                    iteration >= opt.densify_until_iter
                     and iteration < opt.prune_iteration
                 ):
                     gaussians.accumulate_importance_score(radii)
@@ -470,7 +469,7 @@ if __name__ == "__main__":
             f"Peak tensor memory (Allocated): {torch.cuda.max_memory_allocated() / 1024 ** 2} MB\n"
         )
         f.write(
-            f"Peak driver memory (Reseved): {torch.cuda.max_memory_reserved() / 1024 ** 2} MB\n"
+            f"Peak driver memory (Reserved): {torch.cuda.max_memory_reserved() / 1024 ** 2} MB\n"
         )
         f.write(f"Final splats number: {final_splats}\n")
         f.close()
